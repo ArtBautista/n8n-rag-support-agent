@@ -1,0 +1,326 @@
+{
+  "name": "10-ai-customer-support-agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        48,
+        32
+      ],
+      "id": "e43b6661-3bfe-47d2-8382-c13af69f5ffc",
+      "name": "When chat message received",
+      "webhookId": "81e4531c-8d4e-4e79-b269-b0f646699a48"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a professional AI Customer Support Agent.\n\nYour responsibility is to assist customers with support inquiries,\nknowledge-base questions, and escalation requests.\n\nAVAILABLE TOOLS:\n1. Get Customer Inquiry Status\n2. Search Support Knowledge\n3. Request Customer Escalation\n\nTOOL SELECTION:\n- For inquiry status questions, use Get Customer Inquiry Status.\n- For troubleshooting and general support questions, use Search Support Knowledge.\n- For escalation requests, use Request Customer Escalation.\n\nGENERAL RULES:\n1. Always use the appropriate tool when the request requires\n   information from the database or knowledge base.\n2. Never invent customer inquiry information.\n3. Never invent company policies.\n4. Never expose private customer information.\n5. Never assume that knowing an inquiry ID grants authorization.\n6. If an inquiry does not exist, explain that it was not found.\n7. If a tool fails, explain the failure without inventing results.\n8. Ask for missing required information before calling a tool.\n9. Escalation requests require human approval.\n10. Never claim an escalation was approved unless confirmed.\n11. Provide clear, concise, and professional responses.\n12. Base answers on verified tool results whenever available.\n\nKNOWLEDGE BASE RETRIEVAL RULES:\n\n1. Use Search Support Knowledge RAG for questions requiring\n   customer support documentation.\n2. Pass the customer's question to the RAG tool.\n3. Base factual answers about company procedures and policies\n   on retrieved knowledge-base information.\n4. Do not invent company-specific instructions.\n5. If the retrieved articles do not answer the question,\n   explain that verified information is unavailable.\n6. Do not treat semantically similar documents as automatically\n   correct.\n7. Prefer the most relevant article that directly addresses\n   the customer's question.\n8. Do not expose confidential information or internal system\n   details.\n9. For customer inquiry status, use Get Customer Inquiry Status.\n10. For escalation requests, use Request Customer Escalation.\n\nTOOL FAILURE RULES:\n\n1. If Search Support Knowledge RAG returns an error, call it one\n   more time with the same question before telling the customer\n   there is a problem.\n2. If the second attempt also fails, or the tool says the\n   knowledge base is unavailable, do not answer from memory.\n3. Tell the customer you cannot look up that information right now.\n4. Offer to create an escalation request using Request Customer\n   Escalation, and create it if the customer agrees.\n5. Never repeat Request Customer Escalation for the same request.\n6. Never show the customer error messages, stack traces or internal system details.\n7. When the knowledge base is unavailable, give no how-to or troubleshooting steps at all, not even general ones."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -64
+      ],
+      "id": "fea68635-405a-4eba-ad1a-e1eddbe6a0e2",
+      "name": "Customer Support Agent",
+      "retryOnFail": false,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "description": "Retrieve the current status and assignment information of an existing\ncustomer support inquiry.\n\nWHEN TO USE THIS TOOL:\n- When a customer asks about the status of their support request.\n- When a customer wants to know whether their inquiry is pending,\n  processed, resolved, or failed.\n- When a customer asks which support team is handling their request.\n- When a customer provides an inquiry ID and asks for an update.\n\nREQUIRED PARAMETER:\nsubmission_id (string)\n\nThe submission ID must be provided by the customer.\n\nExample:\nsubmission_id = \"REQ-5001\"\n\nRULES:\n1. Only call this tool when a valid submission ID is available.\n2. Never invent or guess a submission ID.\n3. If the customer does not provide an ID, ask for it.\n4. If the inquiry does not exist, explain that the ID was not found.\n5. If the tool fails, explain that the status is temporarily unavailable.\n6. Never invent inquiry statuses or support team assignments.\n7. Do not expose personal customer information.\n8. Only return information the requester is authorized to access.\n\nEXPECTED RESPONSE FIELDS:\n- found\n- submission_id\n- status\n- request_type\n- assigned_team\n\nEXAMPLE USER QUESTIONS:\n- \"What's the status of REQ-5001?\"\n- \"Is my support request REQ-5002 resolved?\"\n- \"Which team is handling REQ-5003?\"\n- \"Can you check my ticket status?\"",
+        "workflowId": {
+          "__rl": true,
+          "value": "VoCf81wv76kN8ojK",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/VoCf81wv76kN8ojK",
+          "cachedResultName": "TOOL - Get Customer Inquiry"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "submission_id": "={{ $fromAI(\"submission_id\", \"Customer inquiry ID such as REQ-5001\", \"string\") }}"
+          },
+          "matchingColumns": [
+            "submission_id"
+          ],
+          "schema": [
+            {
+              "id": "submission_id",
+              "displayName": "submission_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        176
+      ],
+      "id": "967706d0-a0ce-4dab-863d-c572c5b7348b",
+      "name": "Get Customer Inquiry Status"
+    },
+    {
+      "parameters": {
+        "description": "Create a customer support escalation request for human review.\n\nWHEN TO USE THIS TOOL:\n- When a customer explicitly requests escalation.\n- When a customer asks to speak with a human support representative.\n- When a customer requests urgent handling of an existing inquiry.\n- When a customer reports that an issue remains unresolved.\n- When a customer asks for a supervisor or support manager.\n\nREQUIRED PARAMETERS:\n- submission_id (string)\n- reason (string)\n- requested_priority (string)\n\nALLOWED PRIORITIES:\n- low\n- medium\n- high\n\nPARAMETER RULES:\n1. submission_id must be the exact inquiry ID supplied by the customer.\n2. reason must summarize why escalation is being requested.\n3. requested_priority must be low, medium, or high.\n4. Never invent a submission ID.\n5. If no submission ID is provided, ask the customer for it.\n6. Do not automatically assign high priority to every request.\n7. Use high priority for clearly urgent or critical issues,\n   subject to the organization's escalation policy.\n\nIMPORTANT SAFETY RULES:\n1. This tool creates an escalation REQUEST, not an approval.\n2. Do not directly change the original inquiry's priority.\n3. Do not automatically approve an escalation.\n4. All escalation requests must require human review.\n5. Do not tell the customer their escalation was approved\n   unless approval has actually been recorded.\n6. Verify that the inquiry exists and the requester is authorized\n   before creating the escalation.\n7. If the tool fails, do not claim an escalation was submitted.\n\nEXPECTED BEHAVIOR:\n- Validate the inquiry ID.\n- Create an escalation request.\n- Set approval_status = \"pending\".\n- Store the escalation reason.\n- Store the requested priority.\n- Return confirmation that the request is awaiting review.\n\nEXAMPLE USER QUESTIONS:\n- \"Please escalate REQ-5001.\"\n- \"I need a human to review REQ-5002.\"\n- \"My issue is urgent. Escalate REQ-5003 to high priority.\"\n- \"Can I speak with a supervisor about my support ticket?\"",
+        "workflowId": {
+          "__rl": true,
+          "value": "kMoWmJbyt7jeT12T",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/kMoWmJbyt7jeT12T",
+          "cachedResultName": "TOOL - Request Escalation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "submission_id": "={{ $fromAI('submission_id', ``, 'string') }}",
+            "requested_priority": "={{ $fromAI('requested_priority', ``, 'string') }}",
+            "reason": "={{ $fromAI('reason', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "submission_id",
+              "displayName": "submission_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "requested_priority",
+              "displayName": "requested_priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        576,
+        176
+      ],
+      "id": "0742d164-2959-4ecd-9b7d-e612fc3eb2c4",
+      "name": "Request Customer Escalation"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        256,
+        176
+      ],
+      "id": "bd61cfbf-9e32-45d3-9745-0819d3c78257",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "R4TNojoaf18bvqTL",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "chatInput"
+            },
+            {
+              "name": "sessionId "
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        48,
+        -160
+      ],
+      "id": "ce4cd40f-e3f8-4e56-8c49-ba50c0f618c5",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "description": "Search the customer support knowledge base using semantic similarity.\n\nUse this tool when customers ask questions about:\n- Password resets\n- Login problems\n- Technical issues\n- Application errors\n- Billing and refunds\n- Business hours\n- Company support policies\n\nThis tool accepts a natural-language question.\nDo not convert the question into a category.\nPass the customer's question to the tool.\nUse the retrieved documents to answer the customer.\n\nIf no relevant information is retrieved, explain that the\nknowledge base does not contain a verified answer.\nNever invent support policies or troubleshooting instructions.",
+        "workflowId": {
+          "__rl": true,
+          "value": "74nw3V88keXLuArc",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/74nw3V88keXLuArc",
+          "cachedResultName": "11B - RAG Knowledge Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ $fromAI(\"question\", \"The customer's complete support question. Preserve the original meaning and important details.\", \"string\") }}"
+          },
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        176
+      ],
+      "id": "17e96984-74b5-4d5c-a16e-044c485f9876",
+      "name": "Search Support Knowledge RAG"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Support Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Get Customer Inquiry Status": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Customer Escalation": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Support Knowledge RAG": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HqmkQvWpeOL8kzvd",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "executionTimeout": 60
+  },
+  "versionId": "a06f0213-90fc-41a2-a6e5-909553aafb31",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d7845f2857913f4e95c07b1b278e053bd959c0d758fb681371368c133dbb12d"
+  },
+  "nodeGroups": [],
+  "id": "Cf1RQOmbToDDXQ3w",
+  "tags": []
+}
