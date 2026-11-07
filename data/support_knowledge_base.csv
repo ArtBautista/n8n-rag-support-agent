@@ -1,0 +1,5 @@
+﻿article_id,category,question,answer,is_active
+KB-001,Technical Support,How do I reset my password?,"Open the login page, select Forgot Password, and follow the reset instructions.",true
+KB-002,Billing,How do I request a refund?,Submit a billing inquiry with your transaction reference. Our billing team will review the request.,true
+KB-003,General Inquiry,What are your customer support hours?,"Our sample support team operates Monday to Friday, 9 AM to 6 PM.",true
+KB-004,Technical Support,What should I do if the app crashes?,"Restart the app, check for updates, and contact technical support if the issue continues.",true
