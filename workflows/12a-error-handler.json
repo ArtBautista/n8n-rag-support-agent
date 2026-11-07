@@ -1,0 +1,210 @@
+{
+  "name": "12a-error-handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8d60fb3d-fbb2-4aa2-a4e7-bbeee8db39a2",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "lgGzJYahu907pkaV",
+          "mode": "list",
+          "cachedResultName": "support_error_log",
+          "cachedResultUrl": "/projects/Sxm9d2gEy4mCAlgw/datatables/lgGzJYahu907pkaV"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ $json.workflow_name }}",
+            "node_name": "={{ $json.node_name }}",
+            "error_message": "={{ $json.error_message }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "execution_url": "={{ $json.execution_url }}",
+            "status": "={{ $json.status }}",
+            "severity": "={{ $json.severity }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "node_name",
+              "displayName": "node_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "error_message",
+              "displayName": "error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "execution_url",
+              "displayName": "execution_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "a730bbb1-ff96-4d95-9651-47e6632c1fd4",
+      "name": "Log Error",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $('Format Error').item.json.alert_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -16
+      ],
+      "id": "8824cbc7-83f7-41fe-9118-457ffc9eec51",
+      "name": "Send Alert",
+      "webhookId": "39192aec-8f86-45d5-8b90-72089f83c87e",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "GDIbO0mpIZI9X7LQ",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const e = $input.item.json;\nconst msg = String(e.execution?.error?.message ?? \"Unknown error\");\nconst workflow = e.workflow?.name ?? \"unknown workflow\";\nconst node = e.execution?.lastNodeExecuted ?? \"unknown node\";\nconst url = e.execution?.url ?? \"\";\n\nconst severity = /rate limit|429|credit|unauthorized|401/i.test(msg)\n  ? \"high\"\n  : \"medium\";\n\nreturn {\n  json: {\n    workflow_name: workflow,\n    node_name: node,\n    error_message: msg.slice(0, 500),\n    execution_id: String(e.execution?.id ?? \"\"),\n    execution_url: url,\n    severity,\n    status: \"open\",\n    alert_text: `ALERT (${severity}): ${workflow} failed at ${node}\\n${msg.slice(0, 300)}\\n${url}`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5510753b-abf6-4193-8035-4c528dbc5872",
+      "name": "Format Error"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "310266da-5681-48dd-9672-a0fd7ecedbfa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d7845f2857913f4e95c07b1b278e053bd959c0d758fb681371368c133dbb12d"
+  },
+  "nodeGroups": [],
+  "id": "HqmkQvWpeOL8kzvd",
+  "tags": []
+}

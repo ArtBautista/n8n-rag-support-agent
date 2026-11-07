@@ -1,0 +1,169 @@
+{
+  "name": "12b-health-check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "41a58c0b-56d4-4e84-bea5-2ce79f9ee56b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://qdrant:6333/healthz",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "9155c50f-e20e-4549-aa44-70bb426e9efa",
+      "name": "Check Qdrant"
+    },
+    {
+      "parameters": {
+        "url": "http://qdrant:6333/collections/customer_support_kb",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        432,
+        0
+      ],
+      "id": "7d980af3-48e9-4e9d-b2b7-0ed2d916d71b",
+      "name": "Check Collection"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const info = $input.item.json.result ?? {};\n\nif (info.status !== \"green\" || !(info.points_count > 0)) {\n  throw new Error(\n    `Collection unhealthy: status=${info.status}, points=${info.points_count}`\n  );\n}\n\nreturn { json: { ok: true, points: info.points_count } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "7f5b122e-85ed-44e2-8a6f-9678c9b169f6",
+      "name": "Verify Collection"
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/tags",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        208,
+        208
+      ],
+      "id": "91a39f35-e7f3-4244-8da6-6468b3619aae",
+      "name": "Check Ollama"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const models = ($input.item.json.models ?? []).map((m) => m.name);\n\nif (!models.some((n) => n.startsWith(\"nomic-embed-text\"))) {\n  throw new Error(\"Ollama is up but nomic-embed-text is not installed.\");\n}\n\nreturn { json: { ok: true } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        208
+      ],
+      "id": "a21d86dc-e7b1-4d8b-a12b-e08ab847b720",
+      "name": "Verify Embedding Models"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Ollama",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Check Collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Collection": {
+      "main": [
+        [
+          {
+            "node": "Verify Collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Ollama": {
+      "main": [
+        [
+          {
+            "node": "Verify Embedding Models",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HqmkQvWpeOL8kzvd",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "ac22477b-7d48-47ba-a9af-5c9b87a1b12c",
+  "meta": {
+    "instanceId": "3d7845f2857913f4e95c07b1b278e053bd959c0d758fb681371368c133dbb12d"
+  },
+  "nodeGroups": [],
+  "id": "GYJC0od1uZf8oXwc",
+  "tags": []
+}
