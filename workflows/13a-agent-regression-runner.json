@@ -1,0 +1,306 @@
+{
+  "name": "13a-agent-regression-runner",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        0
+      ],
+      "id": "0f5b66b3-3dfa-4dbb-8b81-5f30939182e3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "m0lwOjvFHqBx1gPv",
+          "mode": "list",
+          "cachedResultName": "agent_test_cases",
+          "cachedResultUrl": "/projects/Sxm9d2gEy4mCAlgw/datatables/m0lwOjvFHqBx1gPv"
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -336,
+        0
+      ],
+      "id": "5c29e5ba-d7c6-4cca-945b-52bce26b749e",
+      "name": "Get Test Cases"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Cf1RQOmbToDDXQ3w",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Cf1RQOmbToDDXQ3w",
+          "cachedResultName": "10-ai-customer-support-agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chatInput": "={{ $json.question }}",
+            "sessionId ": "=test-{{ $json.test_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chatInput",
+              "displayName": "chatInput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "sessionId ",
+              "displayName": "sessionId ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        -112,
+        0
+      ],
+      "id": "45c9cbd4-1507-4350-b1f1-abb35478d65f",
+      "name": "Ask Agent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cases = $('Get Test Cases').all().map((i) => i.json);\nconst replies = $input.all().map((i) => i.json);\n\n// A refusal or hedge, used for tests that expect a decline\nconst DECLINES = /(can't|cannot|can not|unable|couldn't|could not|not able|don't have|do not have|no verified|not available|unavailable|does not contain|doesn't contain|no information|not covered)/i;\n// A real failure to answer, used for tests that expect an answer\nconst FAILED_TO_ANSWER = /(i('m| am) unable|i (can't|cannot|could not|couldn't) (find|access|provide|look up)|no verified|unavailable)/i;\n\nconst list = (s) =>\n  String(s ?? \"\").split(\",\").map((x) => x.trim().toLowerCase()).filter(Boolean);\n\nreturn replies.map((agent, index) => {\n  const testCase = cases[index];\n  const answer = String(agent.output ?? agent.text ?? \"\").trim();\n  const lower = answer.toLowerCase();\n  const problems = [];\n\n  if (agent.error || !answer) {\n    problems.push(`No answer: ${agent.error ?? \"empty output\"}`);\n  } else {\n    for (const word of list(testCase.must_contain)) {\n      if (!lower.includes(word)) problems.push(`Missing \"${word}\"`);\n    }\n    for (const word of list(testCase.must_not_contain)) {\n      if (lower.includes(word)) problems.push(`Contains forbidden \"${word}\"`);\n    }\n    if (testCase.expected_behavior === \"answer\" && FAILED_TO_ANSWER.test(answer)) {\n      problems.push(\"Failed to answer an answerable question\");\n    }\n    if (testCase.expected_behavior === \"refuse\" && !DECLINES.test(answer)) {\n      problems.push(\"Did not decline an unsupported or unsafe request\");\n    }\n    if (testCase.expected_behavior === \"clarify\" && !answer.includes(\"?\")) {\n      problems.push(\"Did not ask a clarifying question\");\n    }\n  }\n\n  return {\n    json: {\n      run_id: String($execution.id),\n      test_id: testCase.test_id,\n      result: problems.length === 0 ? \"PASS\" : \"FAIL\",\n      reason: problems.join(\"; \") || \"All checks passed\",\n      answer_excerpt: answer.slice(0, 300)\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        0
+      ],
+      "id": "e629d3e1-f38a-4c7d-bf7f-3f0181d13f14",
+      "name": "Assert Results"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "WBqWH9ZYSvnm0nW2",
+          "mode": "list",
+          "cachedResultName": "agent_test_results",
+          "cachedResultUrl": "/projects/Sxm9d2gEy4mCAlgw/datatables/WBqWH9ZYSvnm0nW2"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_id": "={{ $json.run_id }}",
+            "test_id": "={{ $json.test_id }}",
+            "result": "={{ $json.result }}",
+            "answer_excerpt": "={{ $json.answer_excerpt }}",
+            "reason": "={{ $json.reason }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "run_id",
+              "displayName": "run_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "test_id",
+              "displayName": "test_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "result",
+              "displayName": "result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "answer_excerpt",
+              "displayName": "answer_excerpt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        336,
+        0
+      ],
+      "id": "edf57626-b5dc-4fce-bcaa-485e793de68a",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "e2118b27-398d-43ee-9776-eab5e237614b",
+      "name": "Discord",
+      "webhookId": "6036fc7e-fc59-4cce-843c-7b79a526d302",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "GDIbO0mpIZI9X7LQ",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Assert Results').all().map((i) => i.json);\nconst failed = rows.filter((r) => r.result === \"FAIL\");\nconst passed = rows.length - failed.length;\nconst rate = rows.length ? Math.round((passed / rows.length) * 100) : 0;\n\nconst failures = failed.map((f) => `${f.test_id} (${f.reason})`).join(\"; \");\nconst message =\n  `Agent regression run ${$execution.id}: ${passed}/${rows.length} passed (${rate}%).` +\n  (failed.length ? `\\nFailed: ${failures}` : \"\");\n\nreturn [{ json: { total: rows.length, passed, pass_rate: rate, message: message.slice(0, 1800) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "cbe1ebbf-b276-4db0-ac88-dcfee7d95904",
+      "name": "Summarize Run"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Ask Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Agent": {
+      "main": [
+        [
+          {
+            "node": "Assert Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assert Results": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "Summarize Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Run": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4a6cecfd-cd6b-4dad-9fc1-5b092a69e49d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d7845f2857913f4e95c07b1b278e053bd959c0d758fb681371368c133dbb12d"
+  },
+  "nodeGroups": [],
+  "id": "3ckLJSj6eqiEr1hd",
+  "tags": []
+}

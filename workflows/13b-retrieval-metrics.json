@@ -1,0 +1,246 @@
+{
+  "name": "13b-retrieval-metrics",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9920c854-4012-4b40-8be1-a9e9a5c3125b",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "m0lwOjvFHqBx1gPv",
+          "mode": "list",
+          "cachedResultName": "agent_test_cases",
+          "cachedResultUrl": "/projects/Sxm9d2gEy4mCAlgw/datatables/m0lwOjvFHqBx1gPv"
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5dc48d54-feff-49e6-9b83-36e14021097c",
+      "name": "Get Test Cases"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "8192ee90-fa67-40fd-9cb5-df32a0ecb107",
+              "leftValue": "={{ $json.expected_article }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "88223e12-7680-4c95-b42e-e520751f6886",
+      "name": "Keep Retrieval Cases"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "74nw3V88keXLuArc",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/74nw3V88keXLuArc",
+          "cachedResultName": "11b-rag-knowledge-search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ $json.question }}"
+          },
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "d7bc29ad-596d-4f30-9d9b-5be12dd0d83a",
+      "name": "Search 11B",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cases = $('Keep Retrieval Cases').all().map((i) => i.json);\nconst replies = $input.all().map((i) => i.json);\n\nreturn replies.map((reply, index) => {\n  const testCase = cases[index];\n\n  const expected = String(testCase.expected_article ?? \"\")\n    .split(\",\")\n    .map((s) => s.trim())\n    .filter(Boolean);\n\n  const returned = (reply.results ?? []).map((r) => r.article_id);\n\n  const top1 = expected.includes(returned[0]);\n  const recall3 = expected.every((id) => returned.slice(0, 3).includes(id));\n\n  return {\n    json: {\n      test_id: testCase.test_id,\n      expected: expected.join(\",\"),\n      returned: returned.join(\",\"),\n      top1,\n      recall3\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -96
+      ],
+      "id": "d1e36753-4311-4d6b-9264-e87f5d7edd2c",
+      "name": "Score Retrieval"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json);\nconst n = rows.length;\nconst pct = (x) => (n ? Math.round((x / n) * 100) : 0);\n\nconst top1 = pct(rows.filter((r) => r.top1).length);\nconst recall3 = pct(rows.filter((r) => r.recall3).length);\nconst misses = rows.filter((r) => !r.recall3).map((r) => r.test_id);\n\nreturn [{\n  json: {\n    total: n,\n    top1_accuracy: top1,\n    recall_at_3: recall3,\n    misses,\n    message: `Retrieval run ${$execution.id}: Top-1 ${top1}%, Recall@3 ${recall3}% over ${n} questions. Misses: ${misses.join(\", \") || \"none\"}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -96
+      ],
+      "id": "876c3ebc-2b12-4e22-8600-c5de9069f8f7",
+      "name": "Summarize Retrieval"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        -96
+      ],
+      "id": "282dd942-dd3d-41f8-b8c1-eacc8bf3e348",
+      "name": "Send Retrieval Summary",
+      "webhookId": "a60711e1-8cf4-4e59-baf9-a3d2e2bea79e",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "GDIbO0mpIZI9X7LQ",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Keep Retrieval Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Retrieval Cases": {
+      "main": [
+        [
+          {
+            "node": "Search 11B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search 11B": {
+      "main": [
+        [
+          {
+            "node": "Score Retrieval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Retrieval": {
+      "main": [
+        [
+          {
+            "node": "Summarize Retrieval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Retrieval": {
+      "main": [
+        [
+          {
+            "node": "Send Retrieval Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ce99c4f1-8437-4ae7-8032-0311ad64750f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d7845f2857913f4e95c07b1b278e053bd959c0d758fb681371368c133dbb12d"
+  },
+  "nodeGroups": [],
+  "id": "Y5OYYKpIAJe1gRsP",
+  "tags": []
+}
